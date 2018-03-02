@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Document</title>
+</head>
+<body>
+
+  <style>
+  canvas {
+  margin: auto;
+  display: block;
+}
+  fillText {
+    z-index: 2;
+  }
+  </style>
+
+  <canvas width=688 height=512 id="myCanvas"></canvas>
+
+<script>
+
+var canvas = document.getElementById("myCanvas");
+var ctx = canvas.getContext("2d");
+
+document.addEventListener("keydown", handleFire, false);
+
+var imageBackground = new Image();
+imageBackground.src = "Military_Base.jpg";
+
+var tower = new Image();
+tower.src = "MarioTower.png";
+
+var marioImage = new Image();
+marioImage.src = "Mario.png";
+
+var fireball = new Image();
+fireball.src = "Fireball.png";
+
+var marioFireball = new Image();
+marioFireball.src = "MarioFireball.png";
+
+
+imageBackground.onload = drawBackground();
+
+var booSpriteSheet= new Image();
+booSpriteSheet.src= "booCharacter.png";
+
+var marioMusic = document.createElement("AUDIO");
+marioMusic.setAttribute("src", "MarioSong.mp3");
+marioMusic.loop = true;
+marioMusic.play();
+
+
+var imageWidthBoo = 33, imageHeightBoo = 26;
+var imageWidthMario = 20, imageHeightMario = 36;
+var imageWidthFireball = 22, imageHeightFireball = 20;
+
+var timeOfLastFireball = 0;
+
+
+x = 372;
+y = 10;
+
+var mario = new Mario();
+
+var playingState = 1;
+var stopState = 2;
+var currState = playingState;
+
+setInterval(animate,20);
+function animate() {
+  if(currState == playingState) {
+    drawBackground();
+    score();
+    marioTower();
+    mario.draw();
+    perhapsAddNewBoo();
+    moveBoo();
+    drawBoo();
+    moveFireball();
+    drawFireball();
+  }
+
+  else {
+
+  }
+
+}
+
+var allBoos= [];
+allBoos.push(new Boo());
+
+function perhapsAddNewBoo() {
+  if(Math.random()< 0.07)
+    allBoos.push(new Boo());
+}
+
+function moveBoo() {
+  for(var pos in allBoos) {
+    allBoos[pos].move();
+    if(allBoos[pos].x < 0 || allBoos[pos].y < 0) {
+      allBoos.splice(pos, 1);
+      currState = stopState;
+      ctx.fillText("GAME OVER" ,250,225);
+      ctx.font = "50px Arial";
+
+
+
+    }
+  }
+
+}
+function drawBoo() {
+
+  for(var pos in allBoos) {
+    allBoos[pos].draw();
+  }
+}
+
+function handleFire(event) {
+  var d = new Date();
+  var currTime = d.getTime();
+  if(event.key == " " && currTime - timeOfLastFireball > 250) {
+    timeOfLastFireball=currTime;
+    mario.currDrawState = mario.FIRE;
+    allFireballs.push(new Fireball());
+    setTimeout(switchMarioIDLE, 50);
+  }
+}
+
+
+
+function switchMarioIDLE() {
+  mario.currDrawState = mario.IDLE;
+}
+var allFireballs= [];
+//allFireballs.push(new Fireball());
+
+function moveFireball() {
+  for(var pos in allFireballs) {
+    allFireballs[pos].move();
+    if(allFireballs[pos].x < 0 || allFireballs[pos].y < 0)
+      allFireballs.splice(pos, 1);
+  }
+
+}
+function drawFireball() {
+
+  for(var pos in allFireballs) {
+    allFireballs[pos].draw();
+  }
+}
+
+function Fireball() {
+  this.x = 358;
+  this.y = 190;
+  this.speed = 5.2;
+  this.draw = function() {
+    ctx.drawImage(fireball, this.x, this.y)
+  }
+
+  this.move = function() {
+    //get the target...first boo in array, return if array is empty or just pick some point for the target??
+    var target = allBoos[0];
+    if(target == undefined)
+      return;
+
+    //create vector to target...target coords - fireball coords
+    var xVec = target.x - this.x;
+    var yVec = target.y - this.y;
+
+    //get length of vector
+    var dist = Math.sqrt(xVec*xVec + yVec*yVec);
+
+    //divide vector comps by length
+    var xDistance = xVec/dist;
+    var yDistance = yVec/dist;
+    //multiply by speed
+    var moveX = xDistance*this.speed;
+    var moveY = yDistance*this.speed;
+    //add these comps to the fireball's x and y
+    this.x +=moveX;
+    this.y +=moveY;
+
+    //for each boo...loop over allBoos
+    for (var pos=0; pos<allBoos.length; pos++){
+      //if this collides with the current boo
+      if(detectCollision(this, allBoos[pos])) {
+          //remove this from allFireballs and the current boo from allBoos and break from the loop
+          //allFireballs.splice(pos,1);
+          this.x = -10000;
+          this.y = -11111;
+          allBoos.splice(pos,1);
+          myScore+=1;
+          break;
+      }
+    }
+  }
+
+}
+
+var myScore = 0;
+function score() {
+ctx.fillText("Kills: " + myScore,50,50);
+ctx.font = "30px Arial";
+}
+
+function detectCollision(obj1, obj2) {
+  return(obj1.x < obj2.x + imageWidthBoo && obj1.x + imageWidthFireball > obj2.x &&
+        obj1.y < obj2.y + imageHeightBoo && obj1.y + imageHeightFireball > obj2.y
+  )
+}
+
+
+function Mario() {
+  this.x=335;
+  this.y=175;
+  this.numbImagesMario = 5;
+  this.currImageMario = 0;
+  this.slowAnimationFactor = 5;
+  this.IDLE = 0;
+  this.FIRE = 1;
+  this.currDrawState = this.IDLE;
+  this.currImage = marioImage;
+  this.draw = function () {
+    if(this.currDrawState == this.IDLE) {
+      ctx.drawImage( marioImage, Math.floor(this.currImageMario/this.slowAnimationFactor)*imageWidthMario, 0, imageWidthMario, imageHeightMario, this.x, this.y, imageWidthMario*1.4, imageHeightMario*1.4 );
+      this.currImageMario++;
+      this.currImageMario %= (this.numbImagesMario*this.slowAnimationFactor);
+    }
+    else {
+      ctx.drawImage(marioFireball, this.x, this.y, imageWidthMario*2.4, imageHeightMario*1.4);
+    }
+  }
+
+}
+
+
+function Boo() {
+  this.x=372;
+  this.y=1;
+  this.speed = 4;
+  this.numbImagesBoo = 8;
+  this.currImageBoo = 0;
+  this.draw = function () {
+    ctx.drawImage( booSpriteSheet, this.currImageBoo*imageWidthBoo, 0, imageWidthBoo, imageHeightBoo, this.x, this.y, imageWidthBoo, imageHeightBoo );
+    this.currImageBoo++;
+    this.currImageBoo %= this.numbImagesBoo;
+
+  }
+  this.currentState = 1;
+  this.move = function () {
+    if (this.currentState == 1) {
+      this.y+=this.speed;
+        if(this.y>=140) {
+          this.y=140;
+          this.currentState = 2;
+        }
+    }
+    if (this.currentState == 2) {
+      this.x+=this.speed;
+        if(this.x>=432) {
+          this.x=432;
+          this.currentState = 3;
+        }
+    }
+    if (this.currentState == 3) {
+      this.y+=this.speed;
+      if(this.y>=192){
+        this.y =192;
+        this.currentState = 4;
+      }
+    }
+    if (this.currentState == 4) {
+      this.x+=this.speed;
+      if(this.x>=568) {
+        this.x = 568;
+        this.currentState =5;
+      }
+    }
+    if (this.currentState == 5) {
+      this.y+=this.speed;
+      if(this.y>=284) {
+        this.y =284;
+        this.currentState =6;
+      }
+    }
+    if (this.currentState ==6) {
+      this.x-=this.speed;
+      if(this.x <= 432) {
+        this.x =432;
+        this.currentState = 7;
+      }
+    }
+    if (this.currentState ==7) {
+      this.y+=this.speed;
+      if(this.y>=340) {
+        this.y =340;
+        this.currentState =8;
+      }
+    }
+    if (this.currentState ==8) {
+      this.x-=this.speed;
+      if(this.x <=372) {
+        this.x =372;
+        this.currentState =9;
+      }
+    }
+    if (this.currentState ==9) {
+      this.y+=this.speed;
+      if (this.y>= 475) {
+        this.y =475;
+        this.currentState =10;
+      }
+    }
+    if (this.currentState ==10) {
+      this.x-=this.speed;
+      if(this.x <= 284) {
+        this.x = 284;
+        this.currentState =11;
+      }
+    }
+    if (this.currentState ==11) {
+      this.y-=this.speed;
+      if (this.y <= 344) {
+        this.y =344;
+        this.currentState =12;
+      }
+    }
+    if (this.currentState ==12) {
+      this.x-=this.speed;
+      if(this.x <=218) {
+        this.x = 218;
+        this.currentState =13;
+      }
+    }
+   if (this.currentState ==13) {
+      this.y -= this.speed;
+      if(this.y <= 280) {
+        this.y =280;
+        this.currentState = 14;
+      }
+    }
+    if (this.currentState == 14) {
+      this.x -= this.speed;
+      if (this.x <= 86) {
+        this.x =86;
+        this.currentState =15;
+      }
+
+    }
+    if (this.currentState ==15) {
+      this.y-=this.speed;
+      if (this.y <= 196) {
+        this.y =196;
+        this.currentState =16;
+      }
+    }
+    if (this.currentState ==16) {
+      this.x+=this.speed;
+      if (this.x >= 210) {
+        this.x =210;
+        this.currentState =17;
+      }
+    }
+    if (this.currentState ==17) {
+      this.y-=this.speed;
+      if (this.y <= 140) {
+        this.y =140;
+        this.currentState =18;
+      }
+    }
+    if (this.currentState ==18) {
+      this.x += this.speed;
+      if (this.x >= 280) {
+        this.x =280;
+        this.currentState =19;
+      }
+    }
+    if (this.currentState ==19) {
+      this.y-=this.speed;
+
+    }
+
+
+  }
+}
+
+
+
+function marioTower(){
+  ctx.drawImage(tower,310,205);
+}
+
+function drawBackground () {
+  ctx.drawImage(imageBackground,0,0);
+}
+
+
+
+</script>
+
+</body>
+</html>
